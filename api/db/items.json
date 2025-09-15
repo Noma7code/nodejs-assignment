@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Rice",
+    "price": "$300",
+    "size": "large"
+  },
+  {
+    "id": 2,
+    "name": "Oil",
+    "price": "$40",
+    "size": "medium"
+  },
+  {
+    "id": 3,
+    "name": "beef",
+    "price": "$78",
+    "size": "small"
+  },
+  {
+    "id": 4,
+    "name": "Eggs",
+    "price": "$43",
+    "size": "small"
+  }
+]
