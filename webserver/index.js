@@ -6,7 +6,12 @@ const port = 3000;
 
 const requestHandler = (req, res) => {
   const filepath = path.join(__dirname, "index.html");
-  if (req.url === "/index.html") {
+
+  if (req.url === "/") {
+    res.setHeader("content-Type", "text/html");
+    res.statusCode = 200;
+    res.end("<h1>Welcome</h1>");
+  } else if (req.url === "/index.html") {
     const file = fs.readFile(filepath, "utf8", (err, data) => {
       if (err) {
         res.setHeader("content-Type", "text/plain");
