@@ -10,9 +10,9 @@ const {
 const port = 8080;
 
 const handleRequest = (req, res) => {
-  const urlParts = req.url.split("/"); // e.g. "/items/3" → ["", "items", "3"]
+  const urlParts = req.url.split("/"); // "/items/3" -> ["", "items", "3"]
   const basePath = `/${urlParts[1]}`; // "/items"
-  const hasId = urlParts[2] !== undefined; // check if an id exists
+  const hasId = urlParts[2] !== undefined;
 
   if (req.method === "POST" && req.url === "/items") {
     createItem(req, res);
@@ -26,7 +26,7 @@ const handleRequest = (req, res) => {
     deleteItem(req, res);
   } else {
     res.writeHead(404, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ message: "Route not found" }));
+    res.end(JSON.stringify({ success: false, message: "Route not found" }));
   }
 };
 

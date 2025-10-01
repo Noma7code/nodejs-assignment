@@ -1,26 +1,26 @@
 [
   {
     "id": 1,
-    "name": "Rice",
-    "price": "$300",
+    "name": "cow",
+    "price": 403,
     "size": "large"
   },
   {
     "id": 2,
-    "name": "Oil",
-    "price": "$40",
+    "name": "Yam",
+    "price": 900,
+    "size": "large"
+  },
+  {
+    "id": 5,
+    "name": "slipper",
+    "price": 192,
     "size": "medium"
   },
   {
-    "id": 3,
-    "name": "beef",
-    "price": "$78",
-    "size": "small"
-  },
-  {
-    "id": 4,
-    "name": "Eggs",
-    "price": "$43",
-    "size": "small"
+    "id": 6,
+    "name": "t-shirt",
+    "price": 60,
+    "size": "large"
   }
 ]

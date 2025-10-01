@@ -3,17 +3,16 @@ const path = require("path");
 
 const filePath = path.join(__dirname, "db", "items.json");
 
-// helper: extract id from url (returns number or NaN)
+// extract id from url
 const getIdFromUrl = (url) => {
   const parts = url.split("/");
-  return Number(parts[2]); // e.g. /items/3 → 3
+  return Number(parts[2]);
 };
 
-// helper: safe read
+// safe read
 const readItemsFromFile = (cb) => {
   fs.readFile(filePath, "utf8", (err, data) => {
     if (err) {
-      // if file doesn't exist, return empty array
       if (err.code === "ENOENT") return cb(null, []);
       return cb(err);
     }
@@ -26,6 +25,20 @@ const readItemsFromFile = (cb) => {
   });
 };
 
+// safe write
+const writeItemsToFile = (items, cb) => {
+  fs.writeFile(filePath, JSON.stringify(items, null, 2), cb);
+};
+
+// validate item
+const validateItem = (item) => {
+  if (!item.name || typeof item.name !== "string") return "Name is required";
+  if (typeof item.price !== "number") return "Price must be a number";
+  if (!["small", "medium", "large"].includes(item.size))
+    return "Size must be one of 'small', 'medium', or 'large'";
+  return null;
+};
+
 // Create an item
 const createItem = (req, res) => {
   const chunks = [];
@@ -34,35 +47,42 @@ const createItem = (req, res) => {
     let parsedBody;
     try {
       parsedBody = JSON.parse(Buffer.concat(chunks).toString() || "{}");
-    } catch (e) {
-      res.writeHead(400, { "Content-Type": "text/plain" });
-      return res.end("Invalid JSON body");
+    } catch {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      return res.end(
+        JSON.stringify({ success: false, message: "Invalid JSON body" })
+      );
+    }
+
+    const error = validateItem(parsedBody);
+    if (error) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ success: false, message: error }));
     }
 
     readItemsFromFile((err, items) => {
       if (err) {
-        console.error(err);
-        res.writeHead(500);
-        return res.end("Could not read items");
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(
+          JSON.stringify({ success: false, message: "Could not read items" })
+        );
       }
 
       const newId = items.length ? items[items.length - 1].id + 1 : 1;
-
-      // discard any client-supplied id, put id first, then rest of fields
-      const { id: _ignore, ...rest } = parsedBody;
-      const newItem = { id: newId, ...rest };
+      const newItem = { id: newId, ...parsedBody };
 
       items.push(newItem);
 
-      fs.writeFile(filePath, JSON.stringify(items, null, 2), (err) => {
+      writeItemsToFile(items, (err) => {
         if (err) {
-          console.error(err);
-          res.writeHead(500);
-          return res.end("Could not save item");
+          res.writeHead(500, { "Content-Type": "application/json" });
+          return res.end(
+            JSON.stringify({ success: false, message: "Could not save item" })
+          );
         }
 
         res.writeHead(201, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify(newItem));
+        res.end(JSON.stringify({ success: true, data: newItem }));
       });
     });
   });
@@ -72,12 +92,13 @@ const createItem = (req, res) => {
 const getAllItems = (req, res) => {
   readItemsFromFile((err, items) => {
     if (err) {
-      console.error(err);
-      res.writeHead(500);
-      return res.end("An internal error occurred");
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(
+        JSON.stringify({ success: false, message: "Could not read items" })
+      );
     }
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(items));
+    res.end(JSON.stringify({ success: true, data: items }));
   });
 };
 
@@ -85,27 +106,28 @@ const getAllItems = (req, res) => {
 const getItem = (req, res) => {
   const id = getIdFromUrl(req.url);
   if (!Number.isInteger(id)) {
-    res.writeHead(400);
-    return res.end("Invalid id");
+    res.writeHead(400, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ success: false, message: "Invalid id" }));
   }
 
   readItemsFromFile((err, items) => {
     if (err) {
-      console.error(err);
-      res.writeHead(500);
-      return res.end("An internal error occurred");
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(
+        JSON.stringify({ success: false, message: "Could not read items" })
+      );
     }
 
     const item = items.find((i) => i.id === id);
     if (!item) {
-      res.writeHead(404);
-      return res.end("Item not found");
+      res.writeHead(404, { "Content-Type": "application/json" });
+      return res.end(
+        JSON.stringify({ success: false, message: "Item not found" })
+      );
     }
 
-    // ensure id is first in returned object
-    const { id: itemId, ...rest } = item;
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ id: itemId, ...rest }));
+    res.end(JSON.stringify({ success: true, data: item }));
   });
 };
 
@@ -113,8 +135,8 @@ const getItem = (req, res) => {
 const updateItem = (req, res) => {
   const id = getIdFromUrl(req.url);
   if (!Number.isInteger(id)) {
-    res.writeHead(400);
-    return res.end("Invalid id");
+    res.writeHead(400, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ success: false, message: "Invalid id" }));
   }
 
   const chunks = [];
@@ -123,38 +145,47 @@ const updateItem = (req, res) => {
     let parsedBody;
     try {
       parsedBody = JSON.parse(Buffer.concat(chunks).toString() || "{}");
-    } catch (e) {
-      res.writeHead(400);
-      return res.end("Invalid JSON body");
+    } catch {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      return res.end(
+        JSON.stringify({ success: false, message: "Invalid JSON body" })
+      );
+    }
+
+    const error = validateItem(parsedBody);
+    if (error) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ success: false, message: error }));
     }
 
     readItemsFromFile((err, items) => {
       if (err) {
-        console.error(err);
-        res.writeHead(500);
-        return res.end("An internal error occurred");
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(
+          JSON.stringify({ success: false, message: "Could not read items" })
+        );
       }
 
       const idx = items.findIndex((i) => i.id === id);
       if (idx === -1) {
-        res.writeHead(404);
-        return res.end("Item not found");
+        res.writeHead(404, { "Content-Type": "application/json" });
+        return res.end(
+          JSON.stringify({ success: false, message: "Item not found" })
+        );
       }
 
-      // do not allow client to change id; merge other fields
-      const { id: _ignore, ...restUpdate } = parsedBody;
-      items[idx] = { ...items[idx], ...restUpdate };
+      items[idx] = { id, ...parsedBody };
 
-      fs.writeFile(filePath, JSON.stringify(items, null, 2), (err) => {
+      writeItemsToFile(items, (err) => {
         if (err) {
-          console.error(err);
-          res.writeHead(500);
-          return res.end("Could not update item");
+          res.writeHead(500, { "Content-Type": "application/json" });
+          return res.end(
+            JSON.stringify({ success: false, message: "Could not update item" })
+          );
         }
 
-        const { id: itemId, ...rest } = items[idx];
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ id: itemId, ...rest }));
+        res.end(JSON.stringify({ success: true, data: items[idx] }));
       });
     });
   });
@@ -164,35 +195,38 @@ const updateItem = (req, res) => {
 const deleteItem = (req, res) => {
   const id = getIdFromUrl(req.url);
   if (!Number.isInteger(id)) {
-    res.writeHead(400);
-    return res.end("Invalid id");
+    res.writeHead(400, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ success: false, message: "Invalid id" }));
   }
 
   readItemsFromFile((err, items) => {
     if (err) {
-      console.error(err);
-      res.writeHead(500);
-      return res.end("An internal error occurred");
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(
+        JSON.stringify({ success: false, message: "Could not read items" })
+      );
     }
 
     const idx = items.findIndex((i) => i.id === id);
     if (idx === -1) {
-      res.writeHead(404);
-      return res.end("Item not found");
+      res.writeHead(404, { "Content-Type": "application/json" });
+      return res.end(
+        JSON.stringify({ success: false, message: "Item not found" })
+      );
     }
 
     const [deleted] = items.splice(idx, 1);
 
-    fs.writeFile(filePath, JSON.stringify(items, null, 2), (err) => {
+    writeItemsToFile(items, (err) => {
       if (err) {
-        console.error(err);
-        res.writeHead(500);
-        return res.end("Could not delete item");
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(
+          JSON.stringify({ success: false, message: "Could not delete item" })
+        );
       }
 
-      const { id: itemId, ...rest } = deleted;
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ id: itemId, ...rest }));
+      res.end(JSON.stringify({ success: true, data: deleted }));
     });
   });
 };
